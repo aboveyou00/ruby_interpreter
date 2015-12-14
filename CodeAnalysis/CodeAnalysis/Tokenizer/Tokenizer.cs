@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Numerics;
 using System.Threading.Tasks;
 
 namespace CodeAnalysis.Tokenizer
@@ -264,8 +265,8 @@ namespace CodeAnalysis.Tokenizer
         private bool tryParseToken(ref int pos)
         {
             if (tryParseIdentifierOrKeyword(ref pos)) return true;
-            if (tryParseOperatorOrPunctuator(ref pos)) return true;
             if (tryParseLiteral(ref pos)) return true;
+            if (tryParseOperatorOrPunctuator(ref pos)) return true;
             return false;
         }
 
@@ -478,11 +479,183 @@ namespace CodeAnalysis.Tokenizer
             if (tryParseSymbolLiteral(ref pos)) return true;
             return false;
         }
+
         private bool tryParseNumericLiteral(ref int pos)
         {
-            return false;
-            //TODO: tryParseNumericLiteral
+            bool isNegative = false;
+            int p = pos;
+            var chr = _source[p];
+            if (chr == '-' || chr == '+')
+            {
+                p++;
+                if (chr == '-') isNegative = true;
+                for (int q = _elems.Count - 1; q >= 0; q--)
+                {
+                    if (_elems[q] is Token)
+                    {
+                        var tok = _elems[q];
+                        if (tok is LocalVariableIdentifierToken ||
+                            tok is ConstantIdentifierToken ||
+                            tok is MethodOnlyIdentifierToken)
+                        {
+                            bool foundWhitespace = false;
+                            for (int w = q + 1; w < _elems.Count; w++)
+                                if (_elems[w] is Whitespace) { foundWhitespace = true; break; }
+                            if (!foundWhitespace) return false;
+                        }
+                        break;
+                    }
+                }
+            }
+
+            if (p >= _source.Length) return false;
+            if (tryParseFloatLiteral(pos, ref p, isNegative) ||
+                tryParseIntegerLiteral(pos, ref p, isNegative))
+            {
+                pos = p;
+                return true;
+            }
+            else return false;
         }
+        private bool tryParseFloatLiteral(int start, ref int pos, bool isNegative)
+        {
+            return false;
+            //TODO: tryParseFloatLiteral
+        }
+        private bool tryParseIntegerLiteral(int start, ref int pos, bool isNegative)
+        {
+            var chr = _source[pos];
+            if (chr == '0')
+            {
+                if (++pos < _source.Length)
+                {
+                    chr = _source[pos];
+                    if (chr == 'b' || chr == 'B')
+                    {
+                        pos++;
+                        return tryParseBinaryIntegerLiteral(start, ref pos, isNegative);
+                    }
+                    else if (chr == '_' || chr == 'o' || chr == 'O' || (chr >= '0' && chr <= '7'))
+                    {
+                        pos++;
+                        return tryParseOctalIntegerLiteral(start, ref pos, isNegative);
+                    }
+                    else if (chr == 'x' || chr == 'X')
+                    {
+                        pos++;
+                        return tryParseHexadecimalIntegerLiteral(start, ref pos, isNegative);
+                    }
+                    else if (chr == 'd' || chr == 'D')
+                    {
+                        pos++;
+                        return tryParseDecimalIntegerLiteral(start, ref pos, isNegative);
+                    }
+                }
+                _elems.Add(new IntegerLiteralToken(start, _source.Substring(start, pos - start), BigInteger.Zero));
+                return true;
+            }
+            else if (chr >= '1' && chr <= '9')
+                return tryParseDecimalIntegerLiteral(start, ref pos, isNegative);
+            else return false;
+            //TODO: tryParseIntegerLiteral
+        }
+        private bool tryParseBinaryIntegerLiteral(int start, ref int pos, bool isNegative)
+        {
+            if (pos >= _source.Length) return false;
+            var chr = _source[pos++];
+            if (chr < '0' || chr > '1') return false;
+            BigInteger val = chr - '0';
+            while (pos < _source.Length)
+            {
+                chr = _source[pos];
+                if (chr == '_') break;
+                else if (chr >= '0' && chr <= '1')
+                {
+                    val *= 2;
+                    val += chr - '0';
+                    pos++;
+                }
+                else break;
+            }
+            if (isNegative) val = -val;
+            _elems.Add(new IntegerLiteralToken(start, _source.Substring(start, pos - start), val));
+            return true;
+        }
+        private bool tryParseOctalIntegerLiteral(int start, ref int pos, bool isNegative)
+        {
+            if (pos >= _source.Length) return false;
+            var chr = _source[pos++];
+            if (chr < '0' || chr > '7') return false;
+            BigInteger val = chr - '0';
+            while (pos < _source.Length)
+            {
+                chr = _source[pos];
+                if (chr == '_') break;
+                else if (chr >= '0' && chr <= '7')
+                {
+                    val *= 8;
+                    val += chr - '0';
+                    pos++;
+                }
+                else break;
+            }
+            if (isNegative) val = -val;
+            _elems.Add(new IntegerLiteralToken(start, _source.Substring(start, pos - start), val));
+            return true;
+        }
+        private bool tryParseDecimalIntegerLiteral(int start, ref int pos, bool isNegative)
+        {
+            if (pos >= _source.Length) return false;
+            var chr = _source[pos++];
+            if (chr < '0' || chr > '9') return false;
+            BigInteger val = chr - '0';
+            while (pos < _source.Length)
+            {
+                chr = _source[pos];
+                if (chr == '_') break;
+                else if (chr >= '0' && chr <= '9')
+                {
+                    val *= 10;
+                    val += chr - '0';
+                    pos++;
+                }
+                else break;
+            }
+            if (isNegative) val = -val;
+            _elems.Add(new IntegerLiteralToken(start, _source.Substring(start, pos - start), val));
+            return true;
+        }
+        private bool tryParseHexadecimalIntegerLiteral(int start, ref int pos, bool isNegative)
+        {
+            if (pos >= _source.Length) return false;
+            var chr = char.ToLower(_source[pos++]);
+            BigInteger val;
+            if (chr >= '0' && chr <= '9') val = chr - '0';
+            else if (chr >= 'a' && chr <= 'f') val = chr + 10 - 'a';
+            else return false;
+            while (pos < _source.Length)
+            {
+                chr = char.ToLower(_source[pos]);
+                if (chr == '_') break;
+                else if (chr >= '0' && chr <= '9')
+                {
+                    val *= 16;
+                    val += chr - '0';
+                    pos++;
+                }
+                else if (chr >= 'a' && chr <= 'f')
+                {
+                    val *= 16;
+                    val += chr + 10 - 'a';
+                    pos++;
+                }
+                else break;
+            }
+            if (isNegative) val = -val;
+            _elems.Add(new IntegerLiteralToken(start, _source.Substring(start, pos - start), val));
+            return true;
+        }
+
         private bool tryParseStringLiteral(ref int pos)
         {
             return false;

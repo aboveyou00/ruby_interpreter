@@ -132,5 +132,30 @@ six ||= seven");
             Expect<LocalVariableIdentifierToken>("seven", tok => tok.IsAtEndOfLine);
             ExpectEnd();
         }
+        [TestMethod]
+        public void TestTokenizeIntegerLiterals()
+        {
+            UsingString(@"
+0
++32
+value-24
+value -24
+0d1234
+0b110
+0o011
+0x256");
+            Expect<IntegerLiteralToken>("0", tok => tok.Value == 0 && tok.IsAtBeginningOfLine && tok.IsAtEndOfLine);
+            Expect<IntegerLiteralToken>("+32", tok => tok.Value == 32 && tok.IsAtBeginningOfLine && tok.IsAtEndOfLine);
+            Expect<LocalVariableIdentifierToken>("value", tok => tok.IsAtBeginningOfLine);
+            Expect<OperatorToken>("-");
+            Expect<IntegerLiteralToken>("24", tok => tok.Value == 24 && tok.IsAtEndOfLine);
+            Expect<LocalVariableIdentifierToken>("value", tok => tok.IsAtBeginningOfLine);
+            Expect<IntegerLiteralToken>("-24", tok => tok.Value == -24 && tok.IsAtEndOfLine);
+            Expect<IntegerLiteralToken>("0d1234", tok => tok.Value == 1234 && tok.IsAtBeginningOfLine && tok.IsAtEndOfLine);
+            Expect<IntegerLiteralToken>("0b110", tok => tok.Value == 6 && tok.IsAtBeginningOfLine && tok.IsAtEndOfLine);
+            Expect<IntegerLiteralToken>("0o011", tok => tok.Value == 9 && tok.IsAtBeginningOfLine && tok.IsAtEndOfLine);
+            Expect<IntegerLiteralToken>("0x256", tok => tok.Value == 0x256 && tok.IsAtBeginningOfLine && tok.IsAtEndOfLine);
+            ExpectEnd();
+        }
     }
 }
