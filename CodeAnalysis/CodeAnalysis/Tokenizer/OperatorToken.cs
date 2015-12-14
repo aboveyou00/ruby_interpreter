@@ -9,21 +9,15 @@ namespace CodeAnalysis.Tokenizer
     public class OperatorToken : Token
     {
         public OperatorToken(int start, string oper)
-            : base(start, oper?.Length ?? 0)
+            : base(start, oper)
         {
             if (oper == null) throw new ArgumentNullException(nameof(oper));
             if (!IsOperator(oper)) throw new NotSupportedException($"{oper} is not a valid operator!");
-            Operator = oper;
         }
-
-        public string Operator { get; }
-
-        public bool IsOperatorMethodName => operator_method_names.Contains(Operator);
-        public bool IsAssignmentOperator => assignment_operator_names.Contains(Operator.Substring(0, Operator.Length - 1));
-
-        public override string Stringify()
-            => Operator;
-
+        
+        public bool IsOperatorMethodName => operator_method_names.Contains(SourceCharacters);
+        public bool IsAssignmentOperator => assignment_operator_names.Contains(SourceCharacters.Substring(0, SourceCharacters.Length - 1));
+        
         private static string[] operators = new string[]
         {
             "!", "!=", "!~", "&&", "||",

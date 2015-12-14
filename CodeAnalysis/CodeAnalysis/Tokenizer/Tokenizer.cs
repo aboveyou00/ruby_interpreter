@@ -37,7 +37,7 @@ namespace CodeAnalysis.Tokenizer
                     if (previousTok != null)
                     {
                         foreach (var ws in collector)
-                            tok.PostfixWith(ws);
+                            previousTok.PostfixWith(ws);
                         previousTok.PostfixWith(tok);
                         tok.PrefixWith(previousTok);
                     }
@@ -75,6 +75,7 @@ namespace CodeAnalysis.Tokenizer
                 if (tryParseToken(ref pos)) continue;
 
                 //TODO: Emit ErrorToken
+                throw new NotImplementedException();
             }
             _elems.Add(new EndOfProgramToken(pos));
         }
@@ -163,15 +164,12 @@ namespace CodeAnalysis.Tokenizer
             while (++pos < _source.Length)
             {
                 var chr = _source[pos];
+                //Don't increment pos to collect the newline character, we want it as an input element instead
                 if (chr == '\n') break;
-                else if (chr == '\r' && pos + 1 < _source.Length && _source[pos + 1] == '\n')
-                {
-                    pos++;
-                    break;
-                }
+                else if (chr == '\r' && pos + 1 < _source.Length && _source[pos + 1] == '\n') break;
                 else sb.Append(chr);
             }
-            _elems.Add(new Comment(pos - sb.Length - 1, sb.Length + 1, sb.ToString()));
+            _elems.Add(new SingleLineComment(pos - sb.Length - 1, sb.Length + 1, sb.ToString()));
             return true;
         }
         private bool tryParseMultilineComment(ref int pos)
@@ -195,14 +193,17 @@ namespace CodeAnalysis.Tokenizer
                     //multi-line-comment-end-line
                     int origp = p - 4;
                     int origsbp = sb.Length;
-                    tryParseRestOfBeginEndLineProduction(ref p);
-                    if (p >= _source.Length || !string.IsNullOrEmpty(tryParseNewlineProduction(ref p)))
-                        break;
-                    else
+                    has_rest = tryParseRestOfBeginEndLineProduction(ref p);
+                    if (has_rest) break;
+                    if (p >= _source.Length) break;
+                    nl = tryParseNewlineProduction(ref p);
+                    if (!string.IsNullOrEmpty(nl))
                     {
-                        p = origp;
-                        sb.Remove(origsbp, sb.Length - origsbp);
+                        p -= nl.Length;
+                        break;
                     }
+                    p = origp;
+                    sb.Remove(origsbp, sb.Length - origsbp);
                 }
 
                 //multi-line-comment-line
@@ -214,11 +215,11 @@ namespace CodeAnalysis.Tokenizer
                         sb.Append(nl);
                         break;
                     }
-                    else sb.Append(_source[p]);
+                    else sb.Append(_source[p++]);
                 }
             }
             
-            _elems.Add(new Comment(pos, p - pos, sb.ToString()));
+            _elems.Add(new MultilineComment(pos, p - pos, sb.ToString()));
             pos = p;
             return true;
         }
@@ -227,9 +228,17 @@ namespace CodeAnalysis.Tokenizer
             var ws = tryParseWhitespaceProduction(ref pos);
             if (string.IsNullOrEmpty(ws)) return false;
             while ((ws = tryParseWhitespaceProduction(ref pos)) != null) ;
-
-            while (pos < _source.Length && string.IsNullOrEmpty(tryParseNewlineProduction(ref pos)))
-                sb.Append(_source[pos]);
+            
+            while (pos < _source.Length)
+            {
+                var nl = tryParseNewlineProduction(ref pos);
+                if (!string.IsNullOrEmpty(nl))
+                {
+                    pos -= nl.Length;
+                    break;
+                }
+                sb.Append(_source[pos++]);
+            }
 
             return true;
         }
@@ -266,25 +275,37 @@ namespace CodeAnalysis.Tokenizer
                  isClass = false,
                  isInstance = false;
 
-            var chr = _source[pos];
-            if (chr == '$') isGlobal = true;
+            int p = pos;
+            var chr = _source[p];
+            if (chr == '$')
+            {
+                p++;
+                isGlobal = true;
+            }
             if (chr == '@')
             {
-                if (pos + 1 < _source.Length && _source[pos + 1] == '@') isClass = true;
+                p++;
+                if (p < _source.Length && _source[p] == '@')
+                {
+                    p++;
+                    isClass = true;
+                }
                 else isInstance = true;
             }
             bool hasPrefix = isGlobal || isClass || isInstance;
+            if (hasPrefix) chr = _source[p];
 
             sb.Clear();
             if (!char.IsLetter(chr) && chr != '_') return false;
             sb.Append(chr);
-            while (++pos < _source.Length)
+            while (++p < _source.Length)
             {
-                chr = _source[pos];
+                chr = _source[p];
                 if (char.IsLetterOrDigit(chr) || chr == '_') sb.Append(chr);
                 else break;
             }
 
+            pos = p;
             if (hasPrefix)
             {
                 if (isGlobal) _elems.Add(new GlobalVariableIdentifierToken(pos - sb.Length - 1, sb.ToString()));
@@ -319,60 +340,6 @@ namespace CodeAnalysis.Tokenizer
             else _elems.Add(new LocalVariableIdentifierToken(pos - sb.Length, sb.ToString()));
             return true;
         }
-        
-        //private bool tryParsePunctuator(ref int pos)
-        //{
-        //    var chr = _source[pos];
-        //    if ("[](){},;?".Contains(chr))
-        //    {
-        //        _elems.Add(new PunctuatorToken(pos++, chr.ToString()));
-        //        return true;
-        //    }
-        //    else if (chr == ':')
-        //    {
-        //        if (pos + 1 < _source.Length && _source[pos + 1] == ':')
-        //        {
-        //            _elems.Add(new PunctuatorToken(pos, "::"));
-        //            pos += 2;
-        //            return true;
-        //        }
-        //        else
-        //        {
-        //            _elems.Add(new PunctuatorToken(pos++, ":"));
-        //            return true;
-        //        }
-        //    }
-        //    else if (chr == '.')
-        //    {
-        //        if (pos + 1 < _source.Length && _source[pos + 1] == '.')
-        //        {
-        //            if (pos + 2 < _source.Length && _source[pos + 2] == '.')
-        //            {
-        //                _elems.Add(new PunctuatorToken(pos, "..."));
-        //                pos += 3;
-        //                return true;
-        //            }
-        //            else
-        //            {
-        //                _elems.Add(new PunctuatorToken(pos, ".."));
-        //                pos += 2;
-        //                return true;
-        //            }
-        //        }
-        //        else
-        //        {
-        //            _elems.Add(new PunctuatorToken(pos++, "."));
-        //            return true;
-        //        }
-        //    }
-        //    else if (chr == '=' && pos + 1 < _source.Length && _source[pos + 1] == '>')
-        //    {
-        //        _elems.Add(new PunctuatorToken(pos, "=>"));
-        //        pos += 2;
-        //        return true;
-        //    }
-        //    return false;
-        //}
         
         private bool tryParseOperatorOrPunctuator(ref int pos)
         {

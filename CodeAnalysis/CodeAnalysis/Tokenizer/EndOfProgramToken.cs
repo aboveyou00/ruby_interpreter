@@ -9,11 +9,11 @@ namespace CodeAnalysis.Tokenizer
     public class EndOfProgramToken : Token
     {
         public EndOfProgramToken(int pos)
-            : base(pos, 0)
+            : base(pos, "")
         {
         }
 
         public override string Stringify()
-            => "%%EOP%%";
+            => "%% EOP %%";
     }
 }

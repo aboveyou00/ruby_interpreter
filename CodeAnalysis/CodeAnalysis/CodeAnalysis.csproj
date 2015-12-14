@@ -50,6 +50,8 @@
     <Compile Include="Tokenizer\GlobalVariableIdentifierToken.cs" />
     <Compile Include="Tokenizer\ConstantIdentifierToken.cs" />
     <Compile Include="Tokenizer\AssignmentIdentifierToken.cs" />
+    <Compile Include="Tokenizer\SingleLineComment.cs" />
+    <Compile Include="Tokenizer\MultilineComment.cs" />
     <Compile Include="Tokenizer\OperatorToken.cs" />
     <Compile Include="Tokenizer\PunctuatorToken.cs" />
     <Compile Include="Tokenizer\MethodOnlyIdentifierToken.cs" />

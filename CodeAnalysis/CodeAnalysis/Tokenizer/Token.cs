@@ -8,12 +8,19 @@ namespace CodeAnalysis.Tokenizer
 {
     public abstract class Token : InputElement
     {
-        public Token(int start, int length)
-            : base(start, length)
+        public Token(int start, string source)
+            : base(start, source?.Length ?? 0)
         {
+            if (source == null) throw new ArgumentNullException(nameof(source));
+            SourceCharacters = source;
             prefixes = new List<InputElement>();
             postfixes = new List<InputElement>();
         }
+
+        public string SourceCharacters { get; }
+
+        public override string Stringify()
+            => SourceCharacters;
 
         private List<InputElement> prefixes, postfixes;
         public void PrefixWith(InputElement elem)
@@ -32,7 +39,7 @@ namespace CodeAnalysis.Tokenizer
             where T : Whitespace
             => postfixes.OfType<T>().Any();
         public bool IsAtBeginningOfLine => !prefixes.Any() || prefixes.Last() is LineTerminator;
-        public bool IsAtEndOfLine => !postfixes.Any() || postfixes[0] is LineTerminator || postfixes[0] is EndOfProgramToken;
+        public bool IsAtEndOfLine => !postfixes.Any() || postfixes.OfType<LineTerminator>().Any() || postfixes.OfType<EndOfProgramToken>().Any();
 
     }
 }

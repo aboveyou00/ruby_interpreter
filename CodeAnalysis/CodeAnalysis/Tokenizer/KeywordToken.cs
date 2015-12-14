@@ -9,18 +9,11 @@ namespace CodeAnalysis.Tokenizer
     public class KeywordToken : Token
     {
         public KeywordToken(int start, string keyword)
-            : base(start, keyword?.Length ?? 0)
+            : base(start, keyword)
         {
-            if (keyword == null) throw new ArgumentNullException(nameof(keyword));
             if (!IsKeyword(keyword)) throw new NotSupportedException($"{keyword} is not a valid keyword!");
-            Keyword = keyword;
         }
-
-        public string Keyword { get; }
-
-        public override string Stringify()
-            => Keyword;
-
+        
         private static string[] keywords = new string[]
         {
             "__LINE__", "__ENCODING__", "__FILE__", "BEGIN", "END", //Reserved for future use

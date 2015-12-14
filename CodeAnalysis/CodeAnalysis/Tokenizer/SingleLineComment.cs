@@ -6,16 +6,14 @@ using System.Threading.Tasks;
 
 namespace CodeAnalysis.Tokenizer
 {
-    public abstract class Comment : Whitespace
+    public class SingleLineComment : Comment
     {
-        public Comment(int start, int length, string source)
+        public SingleLineComment(int start, int length, string source)
             : base(start, length, source)
         {
         }
         
         public override string Stringify()
-            => "<%% COMMENT " + SourceCharacters
-                .Replace("\r", "\\r")
-                .Replace("\n", "\\n") + " %%>";
+            => "#" + SourceCharacters;
     }
 }
