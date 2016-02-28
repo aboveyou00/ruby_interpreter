@@ -51,6 +51,7 @@
     <Compile Include="Tokenizer\GlobalVariableIdentifierToken.cs" />
     <Compile Include="Tokenizer\ConstantIdentifierToken.cs" />
     <Compile Include="Tokenizer\AssignmentIdentifierToken.cs" />
+    <Compile Include="Tokenizer\FloatLiteralToken.cs" />
     <Compile Include="Tokenizer\IntegerLiteralToken.cs" />
     <Compile Include="Tokenizer\SingleLineComment.cs" />
     <Compile Include="Tokenizer\MultilineComment.cs" />

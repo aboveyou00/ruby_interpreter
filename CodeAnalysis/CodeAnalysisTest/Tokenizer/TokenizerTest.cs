@@ -157,5 +157,22 @@ value -24
             Expect<IntegerLiteralToken>("0x256", tok => tok.Value == 0x256 && tok.IsAtBeginningOfLine && tok.IsAtEndOfLine);
             ExpectEnd();
         }
+        [TestMethod]
+        public void TestTokenizeFloatLiterals()
+        {
+            UsingString(@"
+0.0
+6.12e2
+0e-4
+.65
+3.2");
+            Expect<FloatLiteralToken>("0.0", tok => tok.Value == 0.0 && tok.IsAtBeginningOfLine && tok.IsAtEndOfLine);
+            Expect<FloatLiteralToken>("6.12e2", tok => tok.Value == 6.12e2 && tok.IsAtBeginningOfLine && tok.IsAtEndOfLine);
+            Expect<FloatLiteralToken>("0e-4", tok => tok.Value == 0e-4 && tok.IsAtBeginningOfLine && tok.IsAtEndOfLine);
+            Expect<PunctuatorToken>(".", tok => tok.IsAtBeginningOfLine);
+            Expect<IntegerLiteralToken>("65", tok => tok.Value == 65 && tok.IsAtEndOfLine);
+            Expect<FloatLiteralToken>("3.2", tok => tok.Value == 3.2 && tok.IsAtBeginningOfLine && tok.IsAtEndOfLine);
+            ExpectEnd();
+        }
     }
 }

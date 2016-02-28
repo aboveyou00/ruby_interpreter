@@ -16,7 +16,8 @@ namespace CodeAnalysis.Tokenizer
         
         private static string[] punctuators = new string[]
         {
-            "[", "]", "(", ")", "{", "}", ":", "::", ",", ";", "..", "...", "?", "=>"
+            "[", "]", "(", ")", "{", "}", ":", "::", ",", ";", "..", "...", "?", "=>",
+            "." //Not in the spec, but it needs to go somewhere...
         };
         public static bool IsPunctuator(string key)
             => punctuators.Contains(key);

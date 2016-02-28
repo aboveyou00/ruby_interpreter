@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Numerics;
 using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 
 namespace CodeAnalysis.Tokenizer
 {
@@ -517,10 +518,44 @@ namespace CodeAnalysis.Tokenizer
             }
             else return false;
         }
+        private Regex float_unprefixed_decimal_part = new Regex("\\G0|[1-9](_?[0-9])*");
+        private Regex float_decimal_digit_part = new Regex("\\G\\.[0-9](_?[0-9])*");
+        private Regex float_exponent_part = new Regex("\\G[Ee][+-]?[0-9](_?[0-9])*");
         private bool tryParseFloatLiteral(int start, ref int pos, bool isNegative)
         {
-            return false;
-            //TODO: tryParseFloatLiteral
+            var p = pos;
+
+            var match = float_unprefixed_decimal_part.Match(_source, start);
+            if (match == null || !match.Success) return false;
+            p += match.Length;
+            sb.Clear();
+            if (isNegative) sb.Append("-");
+            sb.Append(match.Value);
+
+            bool hasddp = false,
+                 hasep = false;
+
+            match = float_decimal_digit_part.Match(_source, p);
+            if (match != null && match.Success)
+            {
+                p += match.Length;
+                sb.Append(match.Value);
+                hasddp = true;
+            }
+
+            match = float_exponent_part.Match(_source, p);
+            if (match != null && match.Success)
+            {
+                p += match.Length;
+                sb.Append(match.Value);
+                hasep = true;
+            }
+
+            if (!hasddp && !hasep) return false;
+
+            pos = p;
+            _elems.Add(new FloatLiteralToken(start, sb.ToString(), double.Parse(sb.ToString().Replace("_", ""))));
+            return true;
         }
         private bool tryParseIntegerLiteral(int start, ref int pos, bool isNegative)
         {
@@ -557,7 +592,6 @@ namespace CodeAnalysis.Tokenizer
             else if (chr >= '1' && chr <= '9')
                 return tryParseDecimalIntegerLiteral(start, ref pos, isNegative);
             else return false;
-            //TODO: tryParseIntegerLiteral
         }
         private bool tryParseBinaryIntegerLiteral(int start, ref int pos, bool isNegative)
         {
@@ -658,23 +692,133 @@ namespace CodeAnalysis.Tokenizer
 
         private bool tryParseStringLiteral(ref int pos)
         {
+            var chr = _source[pos];
+            if (chr == '\'') return tryParseSingleQuotedString(ref pos);
+            else if (chr == '"') return tryParseDoubleQuotedString(ref pos);
+            else if (chr == '%')
+            {
+                if (pos + 1 >= _source.Length) return false;
+                else if (_source[pos + 1] == 'q') return tryParseQuotedNonExpandedString(ref pos);
+                else if ("Q{([<".Contains(_source[pos + 1])) return tryParseQuotedExpandedString(ref pos);
+                else if (_source[pos + 1] == 'x') return tryParseExternalCommand(ref pos);
+            }
+            else if (chr == '<' && pos + 1 < _source.Length && _source[pos + 1] == '<')
+                return tryParseHereDoc(ref pos);
+            else if (chr == '`') return tryParseExternalCommand(ref pos);
             return false;
-            //TODO: tryParseStringLiteral
         }
+        private bool tryParseSingleQuotedString(ref int pos)
+        {
+            return false;
+            //TODO: tryParseSingleQuotedString
+        }
+        private bool tryParseDoubleQuotedString(ref int pos)
+        {
+            return false;
+            //TODO: tryParseDoubleQuotedString
+        }
+        private bool tryParseQuotedNonExpandedString(ref int pos)
+        {
+            return false;
+            //TODO: tryParseQuotedNonExpandedString
+        }
+        private bool tryParseQuotedExpandedString(ref int pos)
+        {
+            return false;
+            //TODO: tryParseQuotedExpandedString
+        }
+        private bool tryParseHereDoc(ref int pos)
+        {
+            return false;
+            //TODO: tryParseHereDoc
+        }
+        private bool tryParseExternalCommand(ref int pos)
+        {
+            return false;
+            //TODO: tryParseExternalCommand
+        }
+
         private bool tryParseArrayLiteral(ref int pos)
         {
-            return false;
-            //TODO: tryParseArrayLiteral
+            if (pos + 1 >= _source.Length) return false;
+            if (_source[pos] != '%') return false;
+            if (_source[pos + 1] == 'w') return tryParseNonExpandedArrayConstructor(ref pos);
+            else if (_source[pos + 1] == 'W') return tryParseExpandedArrayConstructor(ref pos);
+            else return false;
         }
+        private bool tryParseNonExpandedArrayConstructor(ref int pos)
+        {
+            return false;
+            //TODO: tryParseNonExpandedArrayConstructor
+        }
+        private bool tryParseExpandedArrayConstructor(ref int pos)
+        {
+            return false;
+            //TODO: tryParseExpandedArrayConstructor
+        }
+
         private bool tryParseRegularExpressionLiteral(ref int pos)
         {
+            if (_source[pos] == '%' && pos + 1 < _source.Length && _source[pos + 1] == 'r')
+                return tryParseExpandedRegularExpressionLiteral(ref pos);
+            if (_source[pos] != '/') return false;
+
             return false;
             //TODO: tryParseRegularExpressionLiteral
         }
-        private bool tryParseSymbolLiteral(ref int pos)
+        private bool tryParseExpandedRegularExpressionLiteral(ref int pos)
         {
             return false;
+            //TODO: tryParseExpandedRegularExpressionLiteral
+        }
+
+        private bool tryParseSymbolLiteral(ref int pos)
+        {
+            var chr = _source[pos];
+            if (chr == '%' && pos + 1 < _source.Length && _source[pos + 1] == 's') return tryParseNonExpandedSymbol(ref pos);
+            if (chr != ':') return false;
+
+            int p = pos + 1;
+            if (p >= _source.Length) return false;
+            chr = _source[p];
+
             //TODO: tryParseSymbolLiteral
+            if (chr == '\'')
+            {
+                if (tryParseSingleQuotedSymbol(ref p))
+                {
+                    pos = p;
+                    return true;
+                }
+            }
+            else if (chr == '"')
+            {
+                if (tryParseDoubleQuotedSymbol(ref p))
+                {
+                    pos = p;
+                    return true;
+                }
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+            return false;
+        }
+        private bool tryParseNonExpandedSymbol(ref int pos)
+        {
+            return false;
+            //TODO: tryParseNonExpandedSymbol
+        }
+        private bool tryParseSingleQuotedSymbol(ref int pos)
+        {
+            return false;
+            //TODO: tryParseSingleQuotedSymbol
+        }
+        private bool tryParseDoubleQuotedSymbol(ref int pos)
+        {
+            return false;
+            //TODO: tryParseDoubleQuotedSymbol
         }
     }
 }
